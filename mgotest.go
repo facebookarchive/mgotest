@@ -4,6 +4,7 @@ package mgotest
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -12,7 +13,10 @@ import (
 	"labix.org/v2/mgo"
 
 	"github.com/ParsePlatform/go.freeport"
+	"github.com/ParsePlatform/go.waitout"
 )
+
+var mgoWaitingForConnections = []byte("waiting for connections on port")
 
 var configTemplate, configTemplateErr = template.New("config").Parse(`
 port = {{.Port}}
@@ -63,18 +67,22 @@ func (s *Server) Start() {
 	if err != nil {
 		s.T.Fatalf(err.Error())
 	}
-
 	if err := configTemplate.Execute(cf, s); err != nil {
 		s.T.Fatalf(err.Error())
 	}
+	if err := cf.Close(); err != nil {
+		s.T.Fatalf(err.Error())
+	}
 
+	waiter := waitout.New(mgoWaitingForConnections)
 	s.cmd = exec.Command("mongod", "--config", cf.Name())
 	s.cmd.Env = envPlusLcAll()
-	s.cmd.Stdout = os.Stdout
+	s.cmd.Stdout = io.MultiWriter(os.Stdout, waiter)
 	s.cmd.Stderr = os.Stderr
 	if err := s.cmd.Start(); err != nil {
 		s.T.Fatalf(err.Error())
 	}
+	waiter.Wait()
 }
 
 // Stop the server, this will also remove all data.
