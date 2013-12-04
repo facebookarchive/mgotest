@@ -20,15 +20,16 @@ import (
 var mgoWaitingForConnections = []byte("waiting for connections on port")
 
 var configTemplate, configTemplateErr = template.New("config").Parse(`
-port = {{.Port}}
-dbpath = {{.DBPath}}
-nounixsocket = true
-nojournal = true
-nohttpinterface = true
-noprealloc = true
-nssize = 2
-smallfiles = true
-quiet = true
+bind_ip          = 127.0.0.1
+dbpath           = {{.DBPath}}
+nohttpinterface  = true
+nojournal        = true
+noprealloc       = true
+nounixsocket     = true
+nssize           = 2
+port             = {{.Port}}
+quiet            = true
+smallfiles       = true
 `)
 
 func init() {
