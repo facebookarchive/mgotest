@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"text/template"
+	"time"
 
 	"labix.org/v2/mgo"
 
@@ -43,10 +44,11 @@ type Fatalf interface {
 
 // Server is a unique instance of a mongod.
 type Server struct {
-	Port   int
-	DBPath string
-	T      Fatalf
-	cmd    *exec.Cmd
+	Port        int
+	DBPath      string
+	StopTimeout time.Duration
+	T           Fatalf
+	cmd         *exec.Cmd
 }
 
 // Start the server, this will return once the server has been started.
@@ -87,8 +89,16 @@ func (s *Server) Start() {
 
 // Stop the server, this will also remove all data.
 func (s *Server) Stop() {
-	s.cmd.Process.Kill()
-	os.RemoveAll(s.DBPath)
+	fin := make(chan struct{})
+	go func() {
+		defer close(fin)
+		s.cmd.Process.Kill()
+		os.RemoveAll(s.DBPath)
+	}()
+	select {
+	case <-fin:
+	case <-time.After(s.StopTimeout):
+	}
 }
 
 // URL for the mongo server, suitable for use with mgo.Dial.
@@ -107,7 +117,10 @@ func (s *Server) Session() *mgo.Session {
 
 // NewStartedServer creates a new server starts it.
 func NewStartedServer(t Fatalf) *Server {
-	s := &Server{T: t}
+	s := &Server{
+		T:           t,
+		StopTimeout: 15 * time.Second,
+	}
 	s.Start()
 	return s
 }
