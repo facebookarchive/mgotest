@@ -5,7 +5,7 @@ import (
 
 	"labix.org/v2/mgo/bson"
 
-	"github.com/ParsePlatform/go.mgotest"
+	"github.com/facebookgo/mgotest"
 )
 
 func test(t *testing.T, answer int) {

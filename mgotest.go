@@ -13,8 +13,8 @@ import (
 
 	"labix.org/v2/mgo"
 
-	"github.com/ParsePlatform/go.freeport"
-	"github.com/ParsePlatform/go.waitout"
+	"github.com/facebookgo/freeport"
+	"github.com/facebookgo/waitout"
 )
 
 var mgoWaitingForConnections = []byte("waiting for connections on port")
@@ -30,6 +30,10 @@ nssize           = 2
 port             = {{.Port}}
 quiet            = true
 smallfiles       = true
+{{if .ReplSet}}
+oplogSize        = 1
+replSet          = rs
+{{end}}
 `)
 
 func init() {
@@ -47,6 +51,7 @@ type Fatalf interface {
 type Server struct {
 	Port        int
 	DBPath      string
+	ReplSet     bool
 	StopTimeout time.Duration
 	T           Fatalf
 	cmd         *exec.Cmd
@@ -54,11 +59,13 @@ type Server struct {
 
 // Start the server, this will return once the server has been started.
 func (s *Server) Start() {
-	port, err := freeport.Get()
-	if err != nil {
-		s.T.Fatalf(err.Error())
+	if s.Port == 0 {
+		port, err := freeport.Get()
+		if err != nil {
+			s.T.Fatalf(err.Error())
+		}
+		s.Port = port
 	}
-	s.Port = port
 
 	dir, err := ioutil.TempDir("", "mgotest-dbpath-")
 	if err != nil {
@@ -80,8 +87,12 @@ func (s *Server) Start() {
 	waiter := waitout.New(mgoWaitingForConnections)
 	s.cmd = exec.Command("mongod", "--config", cf.Name())
 	s.cmd.Env = envPlusLcAll()
-	s.cmd.Stdout = io.MultiWriter(os.Stdout, waiter)
-	s.cmd.Stderr = os.Stderr
+	if os.Getenv("MGOTEST_VERBOSE") == "1" {
+		s.cmd.Stdout = io.MultiWriter(os.Stdout, waiter)
+		s.cmd.Stderr = os.Stderr
+	} else {
+		s.cmd.Stdout = waiter
+	}
 	if err := s.cmd.Start(); err != nil {
 		s.T.Fatalf(err.Error())
 	}
@@ -104,7 +115,7 @@ func (s *Server) Stop() {
 
 // URL for the mongo server, suitable for use with mgo.Dial.
 func (s *Server) URL() string {
-	return fmt.Sprintf("localhost:%d", s.Port)
+	return fmt.Sprintf("127.0.0.1:%d", s.Port)
 }
 
 // Session for the mongo server.
@@ -121,6 +132,17 @@ func NewStartedServer(t Fatalf) *Server {
 	s := &Server{
 		T:           t,
 		StopTimeout: 15 * time.Second,
+	}
+	s.Start()
+	return s
+}
+
+// NewReplSetServer creates a new server starts it with ReplSet enabled.
+func NewReplSetServer(t Fatalf) *Server {
+	s := &Server{
+		T:           t,
+		StopTimeout: 15 * time.Second,
+		ReplSet:     true,
 	}
 	s.Start()
 	return s
