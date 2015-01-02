@@ -12,7 +12,7 @@ import (
 	"text/template"
 	"time"
 
-	"labix.org/v2/mgo"
+	"gopkg.in/mgo.v2"
 
 	"github.com/facebookgo/freeport"
 	"github.com/facebookgo/stack"
