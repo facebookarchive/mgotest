@@ -87,7 +87,7 @@ func (s *Server) Start() {
 	}
 
 	waiter := waitout.New(mgoWaitingForConnections)
-	s.cmd = exec.Command("mongod", "--config", cf.Name())
+	s.cmd = exec.Command("mongod", "--config", cf.Name(), "--setParameter", "enableTestCommands=1")
 	s.cmd.Env = envPlusLcAll()
 	if os.Getenv("MGOTEST_VERBOSE") == "1" {
 		s.cmd.Stdout = io.MultiWriter(os.Stdout, waiter)
