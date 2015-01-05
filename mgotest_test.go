@@ -39,3 +39,13 @@ func TestTwo(t *testing.T) {
 func TestThree(t *testing.T) {
 	test(t, 44)
 }
+
+func TestTestCommands(t *testing.T) {
+	mongo := mgotest.NewStartedServer(t)
+	defer mongo.Stop()
+	session := mongo.Session()
+	defer session.Close()
+	if err := session.DB("admin").Run(bson.M{"sleep": 1, "secs": 1}, nil); err != nil {
+		t.Fatal(err)
+	}
+}
