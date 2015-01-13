@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 
 	"github.com/facebookgo/mgotest"
 )
@@ -15,5 +16,8 @@ func main() {
 	flag.Parse()
 	rs := mgotest.NewReplicaSet(*n, l)
 	fmt.Println(rs.Addrs())
-	select {}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
+	rs.Stop()
 }
