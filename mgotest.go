@@ -8,14 +8,13 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"strings"
 	"text/template"
 	"time"
 
 	"gopkg.in/mgo.v2"
 
 	"github.com/facebookgo/freeport"
-	"github.com/facebookgo/stack"
+	"github.com/facebookgo/testname"
 	"github.com/facebookgo/waitout"
 )
 
@@ -28,7 +27,7 @@ nohttpinterface  = true
 nojournal        = true
 noprealloc       = true
 nounixsocket     = true
-nssize           = 2
+nssize           = 8
 port             = {{.Port}}
 quiet            = true
 smallfiles       = true
@@ -57,6 +56,7 @@ type Server struct {
 	StopTimeout time.Duration
 	T           Fatalf
 	cmd         *exec.Cmd
+	testName    string
 }
 
 // Start the server, this will return once the server has been started.
@@ -68,8 +68,10 @@ func (s *Server) Start() {
 		}
 		s.Port = port
 	}
-
-	dir, err := ioutil.TempDir("", "mgotest-dbpath-"+getTestNameFromStack())
+	if s.testName == "" {
+		s.T.Fatalf("Cannot determine name for test")
+	}
+	dir, err := ioutil.TempDir("", "mgotest-dbpath-"+s.testName)
 	if err != nil {
 		s.T.Fatalf(err.Error())
 	}
@@ -107,6 +109,7 @@ func (s *Server) Stop() {
 	go func() {
 		defer close(fin)
 		s.cmd.Process.Kill()
+		s.cmd.Process.Wait()
 		os.RemoveAll(s.DBPath)
 	}()
 	select {
@@ -135,6 +138,7 @@ func NewStartedServer(t Fatalf) *Server {
 		s := &Server{
 			T:           t,
 			StopTimeout: 15 * time.Second,
+			testName:    testname.Get("MGO"),
 		}
 		start := make(chan struct{})
 		go func() {
@@ -156,6 +160,7 @@ func NewReplSetServer(t Fatalf) *Server {
 			T:           t,
 			StopTimeout: 15 * time.Second,
 			ReplSet:     true,
+			testName:    testname.Get("MGO"),
 		}
 		start := make(chan struct{})
 		go func() {
@@ -173,25 +178,4 @@ func NewReplSetServer(t Fatalf) *Server {
 func envPlusLcAll() []string {
 	env := os.Environ()
 	return append(env, "LC_ALL=C")
-}
-
-func getTestNameFromStack() string {
-	s := stack.Callers(1)
-
-	for _, f := range s {
-		if strings.HasSuffix(f.File, "_test.go") && strings.HasPrefix(f.Name, "Test") {
-			return fmt.Sprintf("%s_", f.Name)
-		}
-	}
-
-	// find the first caller outside ourselves
-	outside := s[0].File
-	for _, f := range s {
-		if f.File != s[0].File {
-			outside = f.Name
-			break
-		}
-	}
-
-	return fmt.Sprintf("TestNameNotFound_%s_", outside)
 }
