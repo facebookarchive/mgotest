@@ -148,7 +148,7 @@ func NewStartedServer(t Fatalf) *Server {
 		select {
 		case <-start:
 			return s
-		case <-time.After(10 * time.Second):
+		case <-time.After(30 * time.Second):
 		}
 	}
 }
@@ -170,7 +170,7 @@ func NewReplSetServer(t Fatalf) *Server {
 		select {
 		case <-start:
 			return s
-		case <-time.After(10 * time.Second):
+		case <-time.After(30 * time.Second):
 		}
 	}
 }

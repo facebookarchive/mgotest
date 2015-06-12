@@ -45,7 +45,11 @@ func TestTestCommands(t *testing.T) {
 	defer mongo.Stop()
 	session := mongo.Session()
 	defer session.Close()
-	if err := session.DB("admin").Run(bson.M{"sleep": 1, "secs": 1}, nil); err != nil {
+	command := bson.D{
+		{Name: "sleep", Value: 1},
+		{Name: "secs", Value: 1},
+	}
+	if err := session.DB("admin").Run(command, nil); err != nil {
 		t.Fatal(err)
 	}
 }
