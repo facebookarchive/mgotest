@@ -60,7 +60,7 @@ type Server struct {
 }
 
 // Start the server, this will return once the server has been started.
-func (s *Server) Start() {
+func (s *Server) Start(args ...string) {
 	if s.Port == 0 {
 		port, err := freeport.Get()
 		if err != nil {
@@ -89,7 +89,8 @@ func (s *Server) Start() {
 	}
 
 	waiter := waitout.New(mgoWaitingForConnections)
-	s.cmd = exec.Command("mongod", "--config", cf.Name(), "--setParameter", "enableTestCommands=1")
+    args = append(args, "--config", cf.Name(), "--setParameter", "enableTestCommands=1")
+    s.cmd = exec.Command("mongod", args...)
 	s.cmd.Env = envPlusLcAll()
 	if os.Getenv("MGOTEST_VERBOSE") == "1" {
 		s.cmd.Stdout = io.MultiWriter(os.Stdout, waiter)
@@ -133,7 +134,7 @@ func (s *Server) Session() *mgo.Session {
 }
 
 // NewStartedServer creates a new server starts it.
-func NewStartedServer(t Fatalf) *Server {
+func NewStartedServer(t Fatalf, args ...string) *Server {
 	for {
 		s := &Server{
 			T:           t,
@@ -143,7 +144,7 @@ func NewStartedServer(t Fatalf) *Server {
 		start := make(chan struct{})
 		go func() {
 			defer close(start)
-			s.Start()
+			s.Start(args...)
 		}()
 		select {
 		case <-start:
