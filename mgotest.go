@@ -155,7 +155,7 @@ func NewStartedServer(t Fatalf, args ...string) *Server {
 }
 
 // NewReplSetServer creates a new server starts it with ReplSet enabled.
-func NewReplSetServer(t Fatalf) *Server {
+func NewReplSetServer(t Fatalf, args ...string) *Server {
 	for {
 		s := &Server{
 			T:           t,
@@ -166,7 +166,7 @@ func NewReplSetServer(t Fatalf) *Server {
 		start := make(chan struct{})
 		go func() {
 			defer close(start)
-			s.Start()
+			s.Start(args...)
 		}()
 		select {
 		case <-start:
